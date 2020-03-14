@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Aggregator#aggregateBy no return key 1`] = `Map {}`;
+
+exports[`Aggregator#aggregateBy normal case 1`] = `
+Map {
+  2 => Array [
+    1,
+    2,
+    3,
+  ],
+}
+`;

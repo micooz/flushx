@@ -1,0 +1,21 @@
+{
+    "spellright.language": [
+        "en"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext",
+        "typescript"
+    ],
+    "cSpell.ignoreWords": [
+        "antd",
+        "autoincrement",
+        "handler",
+        "tailf",
+        "umijs"
+    ],
+    "search.exclude": {
+        "**/node_modules": false
+    }
+}

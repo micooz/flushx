@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "lib",
+    "noImplicitAny": true,
+    "removeComments": false,
+    "sourceMap": false,
+    "declaration": true,
+    "experimentalDecorators": true
+  },
+  "include": [
+    "src"
+  ]
+}

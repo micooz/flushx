@@ -1,0 +1,39 @@
+{
+  "name": "flushx",
+  "version": "1.0.0",
+  "description": "An universal log analyzer and monitor",
+  "main": "lib/index.js",
+  "scripts": {
+    "dev": "tsc --watch",
+    "compile": "rm -rf lib && tsc",
+    "prepublishOnly": "npm run compile",
+    "pub:beta": "npm run publish --tag beta",
+    "pub": "npm run publish",
+    "lint": "eslint src --ext='.ts'",
+    "test": "jest",
+    "cov": "jest --coverage",
+    "ci": "npm run lint && npm run compile && npm run cov"
+  },
+  "files": [
+    "lib"
+  ],
+  "dependencies": {
+    "flushx-utils": "^1.0.0",
+    "uuid": "^7.0.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.8.4",
+    "@babel/preset-env": "^7.8.4",
+    "@babel/preset-typescript": "^7.8.3",
+    "@types/node": "^13.7.4",
+    "@types/uuid": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^2.21.0",
+    "@typescript-eslint/parser": "^2.21.0",
+    "babel-jest": "^25.1.0",
+    "eslint": "^6.8.0",
+    "jest": "^25.1.0",
+    "typescript": "^3.8.2"
+  },
+  "author": "micooz@hotmail.com",
+  "license": "MIT"
+}

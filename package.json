@@ -1,0 +1,23 @@
+{
+  "name": "root",
+  "private": true,
+  "scripts": {
+    "bootstrap": "lerna bootstrap",
+    "compile": "lerna run compile",
+    "pub": "lerna publish",
+    "pub:beta": "lerna publish --npm-tag beta",
+    "lint": "lerna run lint",
+    "test": "lerna run test",
+    "cov": "lerna run cov",
+    "ci": "lerna run ci"
+  },
+  "devDependencies": {
+    "husky": "^4.2.3",
+    "lerna": "^3.20.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  }
+}

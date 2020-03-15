@@ -1,13 +1,14 @@
 export interface Config {
   name: string;
+  description?: string;
   dateMask: string | DateMaskPreset;
   period: ProcessPeriod;
   collector: PluginConfig;
   parser: PluginConfig;
   processor: PluginConfig;
   writer: PluginConfig;
-  reader: PluginConfig;
-  alert: PluginConfig;
+  reader?: PluginConfig;
+  alert?: PluginConfig;
 }
 
 export interface PluginConfig {

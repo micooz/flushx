@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { Worker } from 'worker_threads';
+// import { Worker } from 'worker_threads';
 import { Config } from './config';
 import { Executor } from './executor';
 
@@ -9,7 +9,8 @@ const THREAD_SCRIPT = path.join(__dirname, 'thread-script.js');
 type Metric = {
   uuid: string;
   config: Config;
-  worker?: Worker;
+  // eslint-disable-next-line
+  worker?: any;
   executor?: Executor;
 };
 
@@ -53,6 +54,7 @@ export class Manager {
   // using worker_threads, by have problem work with better-sqlite3
   // https://github.com/JoshuaWise/better-sqlite3/issues/237
   private async spawn(config: Config): Promise<Metric> {
+    const { Worker } = await import('worker_threads');
     return new Promise((resolve, reject) => {
       const uuid = uuidv4();
       const worker = new Worker(THREAD_SCRIPT, {

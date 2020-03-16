@@ -1,0 +1,30 @@
+name: 监控示例配置
+description: 秒级监控
+dateMask: ISO8601
+period: s
+
+collector:
+  plugin: flushx-collector-fs
+  config:
+    file: xxx.log.{YYYY-MM-DD}
+    mode: continuous
+
+parser:
+  plugin: flushx-parser-regexp
+  config:
+    series:
+      - { name: 'New Connection', regexp: 'connecting' }
+      - { name: 'New Warning', regexp: 'warn' }
+
+processor:
+  plugin: flushx-processor-sum
+
+writer:
+  plugin: flushx-writer-sqlite
+  config:
+    file: flushx.db
+
+reader:
+  plugin: flushx-reader-sqlite
+  config:
+    file: flushx.db

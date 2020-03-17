@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Context, ICollectorPlugin, PluginConfig, CollectorPluginExecuteInput } from 'flushx';
-import { tail, TFHandle, TFMode, LineDecoder } from 'flushx-utils';
+import { memorize, tail, TFHandle, TFMode, LineDecoder, MemorizeFn } from 'flushx-utils';
 
 /**
  * 文件数据读取器
@@ -10,7 +10,12 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
 
   private config: FsCollectorPluginConfig;
 
+  // eslint-disable-next-line
+  private memo: MemorizeFn<any>;
+
   private tailfHandler: TFHandle;
+
+  private fsWatcher: fs.FSWatcher;
 
   private directory: string;
 
@@ -25,6 +30,10 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
       throw Error('file must be set');
     }
 
+    this.config = config;
+    this.config.mode = mode || ReadMode.CONTINUOUS;
+    this.memo = memorize();
+
     const maskMatchArray = file.match(/\{(.*)\}$/);
     if (maskMatchArray) {
       // e.g, YYYY-MM-DD
@@ -36,21 +45,9 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
       const dir = path.dirname(
         path.isAbsolute(file) ? file : path.join(process.cwd(), file)
       );
-      const name = path.basename(file, `.{${this.rotationMask}}`);
-      const regexp = new RegExp(
-        this.rotationMask.replace(/\w/g, '\\d') + '$'
-      );
+
       const files = (await fs.promises.readdir(dir))
-        .filter(file => {
-          if (!file.startsWith(name)) {
-            return false;
-          }
-          // must match rotation mask
-          if (!file.match(regexp)) {
-            return false;
-          }
-          return true;
-        })
+        .filter(this.isFileMatchMask.bind(this))
         .map(file => path.join(dir, file));
 
       if (files.length < 1) {
@@ -83,15 +80,16 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
     if (mode && !Object.values(ReadMode).includes(mode)) {
       throw Error(`unknown mode: "${mode}"`);
     }
-
-    this.config = config;
-    this.config.mode = mode || ReadMode.CONTINUOUS;
   }
 
   async dispose(): Promise<void> {
     if (this.tailfHandler) {
       this.tailfHandler.close();
       this.tailfHandler = null;
+    }
+    if (this.fsWatcher) {
+      this.fsWatcher.close();
+      this.fsWatcher = null;
     }
   }
 
@@ -108,14 +106,14 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
     }
 
     if (mode === ReadMode.CONTINUOUS) {
-      if (this.tailfHandler) {
+      if (this.tailfHandler || this.fsWatcher) {
         return;
       }
 
       if (this.rotationMask && this.directory) {
-        fs.watch(this.directory, { encoding: 'utf8' }, (eventType, filename) => {
+        this.fsWatcher = fs.watch(this.directory, { encoding: 'utf8' }, (eventType, filename) => {
           // On most platforms, 'rename' is emitted whenever a filename appears or disappears in the directory.
-          if (eventType !== 'rename' || !filename) {
+          if (eventType !== 'rename' || !this.isFileMatchMask(filename)) {
             return;
           }
           const fullPath = path.join(this.directory, filename);
@@ -141,6 +139,31 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
         decoder.put(data);
       }
     }
+  }
+
+  private isFileMatchMask(filename: string): boolean {
+    const { rotationMask, config: { file } } = this;
+
+    if (!rotationMask) {
+      return false;
+    }
+
+    const { name, regexp } = this.memo(() => {
+      const name = path.basename(file, `.{${rotationMask}}`);
+      const regexp = new RegExp(rotationMask.replace(/\w/g, '\\d') + '$');
+      return { name, regexp };
+    }, []);
+
+    if (!filename.startsWith(name)) {
+      return false;
+    }
+
+    // must match rotation mask
+    if (!filename.match(regexp)) {
+      return false;
+    }
+
+    return true;
   }
 
 }

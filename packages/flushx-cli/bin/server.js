@@ -20,7 +20,7 @@ async function server({ port, dir }) {
 
   await app.start();
 
-  console.log(`api server is running on ${port}!`)
+  console.log(`[flushx] web api server is running on ${port}`)
 }
 
 module.exports = server;

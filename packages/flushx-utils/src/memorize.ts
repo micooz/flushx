@@ -1,19 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type Callback<T> = () => T;
 
-export type MemorizeFn<T> = (callback: Callback<T>, deps: any[]) => T;
+export type MemorizeFn<T> = (callback: Callback<T>, deps: any[], contextKey: string) => T;
+
+type MapValue<T> = {
+  deps: any[];
+  value: T;
+};
+
+type ContextKey = string;
 
 export function memorize<T>(): MemorizeFn<T> {
-  let previousDeps: any[] = [];
-  let cachedValue: T;
+  const map = new Map<ContextKey, MapValue<T>>();
 
-  return (callback: Callback<T>, deps: any[]): T => {
+  return function inner(callback: Callback<T>, deps: any[], contextKey: string): T {
     const updateDepsAndCache = (): T => {
-      previousDeps = deps;
-      return cachedValue = callback();
+      const newValue = callback();
+      map.set(contextKey, {
+        deps,
+        value: newValue,
+      });
+      return newValue;
     };
 
-    if (!cachedValue || previousDeps.length !== deps.length) {
+    const { deps: previousDeps, value } = map.get(contextKey) || {};
+
+    if (!value || previousDeps.length !== deps.length) {
       return updateDepsAndCache();
     }
 
@@ -24,6 +36,6 @@ export function memorize<T>(): MemorizeFn<T> {
       }
     }
 
-    return cachedValue;
+    return value;
   };
 }

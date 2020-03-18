@@ -1,7 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { watch, FSWatcher } from 'chokidar';
 import { Context, ICollectorPlugin, PluginConfig, CollectorPluginExecuteInput } from 'flushx';
 import { memorize, tail, TFHandle, TFMode, LineDecoder, MemorizeFn } from 'flushx-utils';
+
+// eslint-disable-next-line
+const useMemo: MemorizeFn<any> = memorize();
 
 /**
  * 文件数据读取器
@@ -10,18 +14,9 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
 
   private config: FsCollectorPluginConfig;
 
-  // eslint-disable-next-line
-  private memo: MemorizeFn<any>;
-
   private tailfHandler: TFHandle;
 
-  private fsWatcher: fs.FSWatcher;
-
-  private directory: string;
-
-  private files: string[];
-
-  private rotationMask: string;
+  private fsWatcher: FSWatcher;
 
   async init(config: FsCollectorPluginConfig): Promise<void> {
     const { file, mode } = config;
@@ -32,45 +27,14 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
 
     this.config = config;
     this.config.mode = mode || ReadMode.CONTINUOUS;
-    this.memo = memorize();
 
-    const maskMatchArray = file.match(/\{(.*)\}$/);
-    if (maskMatchArray) {
-      // e.g, YYYY-MM-DD
-      this.rotationMask = maskMatchArray[1];
+    const files = this.getFiles();
+    if (files.length < 1) {
+      throw Error(`no file(s) match "${file}"`);
     }
 
-    // find all files if rotation mask set
-    if (this.rotationMask) {
-      const dir = path.dirname(
-        path.isAbsolute(file) ? file : path.join(process.cwd(), file)
-      );
-
-      const files = (await fs.promises.readdir(dir))
-        .filter(this.isFileMatchMask.bind(this))
-        .map(file => path.join(dir, file));
-
-      if (files.length < 1) {
-        throw Error(`no files match "${file}"`);
-      }
-
-      // sort by modified time
-      this.files = [...files].sort((a: string, b: string) => {
-        const { mtime: amtime } = fs.statSync(a);
-        const { mtime: bmtime } = fs.statSync(b);
-        return bmtime.getTime() - amtime.getTime();
-      });
-
-      this.directory = dir;
-    } else {
-      if (!fs.existsSync(file)) {
-        throw Error(`"${file}" doesn't exists`);
-      }
-      this.files = [file];
-    }
-
-    // File type check
-    for (const file of this.files) {
+    // type check
+    for (const file of files) {
       const stat = fs.statSync(file);
       if (!stat.isFile()) {
         throw Error(`"${file}" must be a FILE`);
@@ -84,17 +48,16 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
 
   async dispose(): Promise<void> {
     if (this.tailfHandler) {
-      this.tailfHandler.close();
+      await this.tailfHandler.close();
       this.tailfHandler = null;
     }
     if (this.fsWatcher) {
-      this.fsWatcher.close();
+      await this.fsWatcher.close();
       this.fsWatcher = null;
     }
   }
 
   execute(_ctx: Context, input: CollectorPluginExecuteInput): void {
-    const { files } = this;
     const { mode = ReadMode.CONTINUOUS } = this.config;
 
     function emit(lines: string[]): void {
@@ -105,28 +68,29 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
       return tail(filePath, { encoding: 'utf8', mode: TFMode.F }, emit);
     }
 
+    const files = this.getFiles();
+
     if (mode === ReadMode.CONTINUOUS) {
       if (this.tailfHandler || this.fsWatcher) {
         return;
       }
+      const mask = this.getRotationMask();
+      const directory = this.getDirectory();
 
-      if (this.rotationMask && this.directory) {
-        this.fsWatcher = fs.watch(this.directory, { encoding: 'utf8' }, (eventType, filename) => {
-          // On most platforms, 'rename' is emitted whenever a filename appears or disappears in the directory.
-          if (eventType !== 'rename' || !this.isFileMatchMask(filename)) {
+      if (mask) {
+        this.fsWatcher = watch(directory, { depth: 1 });
+
+        this.fsWatcher.on('add', filename => {
+          if (!this.isFileMatchMask(filename, mask)) {
             return;
           }
-          const fullPath = path.join(this.directory, filename);
-          if (!fs.existsSync(fullPath)) {
-            // file was probably removed
-            return;
-          }
+          const fullPath = path.join(directory, filename);
           this.tailfHandler.close();
           this.tailfHandler = tailf(fullPath);
         });
       }
 
-      this.tailfHandler = tailf(this.files[0]);
+      this.tailfHandler = tailf(files[0]);
       return;
     }
 
@@ -141,18 +105,54 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
     }
   }
 
-  private isFileMatchMask(filename: string): boolean {
-    const { rotationMask, config: { file } } = this;
+  private getRotationMask(): string {
+    const { file } = this.config;
+    return useMemo(() => {
+      const maskMatchArray = file.match(/\{(.*)\}$/);
+      // e.g, YYYY-MM-DD
+      return maskMatchArray ? maskMatchArray[1] : null;
+    }, [file], 'getRotationMask');
+  }
 
-    if (!rotationMask) {
-      return false;
+  private getDirectory(): string {
+    const { file } = this.config;
+    return path.dirname(
+      path.isAbsolute(file) ? file : path.join(process.cwd(), file)
+    );
+  }
+
+  private getFiles(): string[] {
+    const { file } = this.config;
+    const mask = this.getRotationMask();
+
+    let files = [];
+
+    if (mask) {
+      const dir = this.getDirectory();
+
+      files = fs.readdirSync(dir)
+        .filter(name => this.isFileMatchMask(name, mask))
+        .map(name => path.join(dir, name));
+    } else {
+      files.push(file);
     }
 
-    const { name, regexp } = this.memo(() => {
-      const name = path.basename(file, `.{${rotationMask}}`);
-      const regexp = new RegExp(rotationMask.replace(/\w/g, '\\d') + '$');
+    // sort by modified time
+    return [...files].sort((a: string, b: string) => {
+      const { mtime: amtime } = fs.statSync(a);
+      const { mtime: bmtime } = fs.statSync(b);
+      return bmtime.getTime() - amtime.getTime();
+    });
+  }
+
+  private isFileMatchMask(filename: string, mask: string): boolean {
+    const { config: { file } } = this;
+
+    const { name, regexp } = useMemo(() => {
+      const name = path.basename(file, `.{${mask}}`);
+      const regexp = new RegExp(mask.replace(/\w/g, '\\d') + '$');
       return { name, regexp };
-    }, []);
+    }, [file, mask], 'isFileMatchMask');
 
     if (!filename.startsWith(name)) {
       return false;

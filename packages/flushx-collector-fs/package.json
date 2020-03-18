@@ -18,6 +18,7 @@
     "lib"
   ],
   "dependencies": {
+    "chokidar": "^3.3.1",
     "flushx": "^1.0.0",
     "flushx-utils": "^1.0.0"
   },

@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as debounce from 'debounce';
+import { watch, FSWatcher } from 'chokidar';
 import { LineDecoder } from './line-decoder';
 import { fitToRange } from './fit-to-range';
 
@@ -9,7 +10,7 @@ import { fitToRange } from './fit-to-range';
  * @param options
  * @param cb
  */
-export function tail(file: fs.PathLike, options: TFOptions, cb: TFCallback): TFHandle {
+export function tail(file: string, options: TFOptions, cb: TFCallback): TFHandle {
   const encoding = options.encoding || 'utf8';
   const delimiter = options.delimiter || '\n';
   const mode = options.mode || TFMode.F;
@@ -124,7 +125,7 @@ export function tail(file: fs.PathLike, options: TFOptions, cb: TFCallback): TFH
     decoder.put(wholeBuf);
   }
 
-  let watcher: fs.FSWatcher;
+  let watcher: FSWatcher;
 
   // tail -f
   if (mode === TFMode.F) {
@@ -137,11 +138,8 @@ export function tail(file: fs.PathLike, options: TFOptions, cb: TFCallback): TFH
       decoder.put(buf);
     }, 1000, true);
 
-    watcher = fs.watch(file, { encoding }, eventType => {
-      if (eventType === 'change') {
-        handleFileChange();
-      }
-    });
+    watcher = watch(file);
+    watcher.on('change', handleFileChange);
   }
 
   // tail -n
@@ -150,10 +148,10 @@ export function tail(file: fs.PathLike, options: TFOptions, cb: TFCallback): TFH
   }
 
   return {
-    close(): void {
+    async close(): Promise<void> {
       decoder.removeListener(LineDecoder.events.LINES, cb);
       if (watcher) {
-        watcher.close();
+        await watcher.close();
       }
       fs.closeSync(fd);
     }
@@ -170,7 +168,7 @@ export interface TFOptions {
 }
 
 export interface TFHandle {
-  close(): void;
+  close(): Promise<void>;
 }
 
 export enum TFMode {

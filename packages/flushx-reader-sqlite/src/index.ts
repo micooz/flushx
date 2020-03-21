@@ -1,7 +1,12 @@
 import { Context, IReaderPlugin, ReaderExecuteResult, PluginConfig, ReaderExecuteInput } from 'flushx';
+import { Logger } from 'flushx-utils';
 import * as sqlite from 'better-sqlite3';
 
+const logger = Logger.scope('flushx-reader-sqlite');
+
 export default class SqliteReaderPlugin implements IReaderPlugin {
+
+  config: SqliteReaderPluginConfig;
 
   db: sqlite.Database;
 
@@ -19,10 +24,14 @@ export default class SqliteReaderPlugin implements IReaderPlugin {
 
     // prepare select statement
     this.select = this.db.prepare(`SELECT * FROM ${table} WHERE timestamp >= @from AND timestamp <= @to`);
+
+    this.config = config;
   }
 
   async dispose(): Promise<void> {
+    const { file } = this.config;
     if (this.db) {
+      logger.info(`close database connection from: ${file}`);
       this.db.close();
     }
   }

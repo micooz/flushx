@@ -1,4 +1,4 @@
-import { Aggregator } from 'flushx-utils';
+import { Aggregator, Logger } from 'flushx-utils';
 import { Config, ProcessPeriod } from './config';
 import { Context } from './context';
 import {
@@ -13,6 +13,8 @@ import {
 import { PluginLoader, PluginMap } from './loader';
 import getDateMaskRegexp from './utils/get-date-mask-regexp';
 import getPeriodKey from './utils/get-period-key';
+
+const logger = Logger.scope('flushx', 'executor');
 
 export class Executor {
 
@@ -127,12 +129,13 @@ export class Executor {
         await writer.execute(this.context, processorResult);
       }
     } catch (err) {
-      console.error(`[executor] plugin execute failed:`, err);
+      logger.error(`plugin execute failed:`, err);
     }
   }
 
   async dispose(): Promise<void> {
     if (this.loader) {
+      logger.info(`dispose ${this.loader.plugins.size} plugins`);
       await this.loader.dispose();
     }
     if (this.aggregator) {

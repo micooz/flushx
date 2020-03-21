@@ -1,9 +1,11 @@
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 // import { Worker } from 'worker_threads';
+import { Logger } from 'flushx-utils';
 import { Config } from './config';
 import { Executor } from './executor';
 
+const logger = Logger.scope('flushx', 'manager');
 const THREAD_SCRIPT = path.join(__dirname, 'thread-script.js');
 
 type Metric = {
@@ -82,8 +84,8 @@ export class Manager {
 
       worker.on('exit', code => {
         if (code !== 0) {
-          const message = `[manager] metric ${uuid} exited with code: ${code}`;
-          console.log(message);
+          const message = `metric ${uuid} exited with code: ${code}`;
+          logger.error(message);
           reject(new Error(message));
         }
       });
@@ -92,11 +94,13 @@ export class Manager {
 
   async dispose(): Promise<void> {
     for (const { uuid, worker, executor, config } of this.metrics) {
-      console.log(`[manager] dispose metric: ${config.name}(${uuid})`);
+      logger.info(`dispose metric: (${config.name})(${uuid})`);
       if (worker) {
+        logger.info('dispose worker');
         worker.postMessage('cleanup');
       }
       if (executor) {
+        logger.info('dispose executor');
         await executor.dispose();
       }
     }

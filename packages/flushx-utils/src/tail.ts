@@ -1,8 +1,11 @@
 import * as fs from 'fs';
 import * as debounce from 'debounce';
-import { watch, FSWatcher } from 'chokidar';
+import { watch, FSWatcher, WatchOptions } from 'chokidar';
 import { LineDecoder } from './line-decoder';
 import { fitToRange } from './fit-to-range';
+import { Logger } from './logger';
+
+const logger = Logger.scope('flushx-utils', 'tail');
 
 /**
  * function like unix tail command
@@ -15,6 +18,7 @@ export function tail(file: string, options: TFOptions, cb: TFCallback): TFHandle
   const delimiter = options.delimiter || '\n';
   const mode = options.mode || TFMode.F;
   const n = options.n;
+  const watchOptions = options.watchOptions;
 
   if (mode === TFMode.N && !n) {
     throw Error('n should be specified when mode is TFMode.N');
@@ -46,9 +50,9 @@ export function tail(file: string, options: TFOptions, cb: TFCallback): TFHandle
     return sharedBuffer;
   }
 
-  function readToEnd(): Buffer | null {
+  function readToEnd(stats?: fs.Stats): Buffer | null {
     // 获取当前文件总长度
-    const { size } = fs.statSync(file);
+    const { size } = stats || fs.statSync(file);
 
     // 计算本次应该读取的增量
     const len = size - pos;
@@ -108,7 +112,7 @@ export function tail(file: string, options: TFOptions, cb: TFCallback): TFHandle
         k = k + 1;
         // already match requirement
         if (k > n) {
-          wholeBuf = Buffer.concat([ buf.slice(index + 1), wholeBuf ]);
+          wholeBuf = Buffer.concat([buf.slice(index + 1), wholeBuf]);
           break tag;
         }
         offset = offset - (lastIndex - index + 1);
@@ -116,7 +120,7 @@ export function tail(file: string, options: TFOptions, cb: TFCallback): TFHandle
       }
 
       // prepend to wholeBuf
-      wholeBuf = Buffer.concat([ buf, wholeBuf ]);
+      wholeBuf = Buffer.concat([buf, wholeBuf]);
 
       // update pos
       pos = pos - bytesRead;
@@ -130,15 +134,17 @@ export function tail(file: string, options: TFOptions, cb: TFCallback): TFHandle
   // tail -f
   if (mode === TFMode.F) {
     // 做一个 debounce 以防止频繁调用
-    const handleFileChange = debounce(() => {
-      const buf = readToEnd();
+    const handleFileChange = debounce((_: string, stats: fs.Stats) => {
+      logger.debug(`file: "${file}" changed`);
+      const buf = readToEnd(stats);
       if (!buf) {
         return;
       }
       decoder.put(buf);
     }, 1000, true);
 
-    watcher = watch(file);
+    logger.debug(`watching file: ${file}`);
+    watcher = watch(file, watchOptions);
     watcher.on('change', handleFileChange);
   }
 
@@ -165,6 +171,7 @@ export interface TFOptions {
   n?: number;
   initBufferSize?: number;
   maxBufferSize?: number;
+  watchOptions?: WatchOptions;
 }
 
 export interface TFHandle {

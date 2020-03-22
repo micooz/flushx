@@ -14,7 +14,7 @@
     "compile:watch": "tsc --watch",
     "compile": "rm -rf lib && tsc",
     "start": "node bin/cli.js start fixtures",
-    "server": "node bin/cli.js server --port 3030 --dir fixtures",
+    "server": "LOG_LEVEL=debug node bin/cli.js server --port 3030 --dir fixtures",
     "plugin:create": "node bin/cli.js plugin create --pkg foo",
     "plugin:update": "node bin/cli.js plugin update --pkg foo",
     "api:generate": "node bin/cli.js api generate --dir ../flushx-web/src/services",

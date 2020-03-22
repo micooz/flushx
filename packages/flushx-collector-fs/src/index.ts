@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { watch, FSWatcher } from 'chokidar';
+import { watch, FSWatcher, WatchOptions } from 'chokidar';
 import { Context, ICollectorPlugin, PluginConfig, CollectorPluginExecuteInput } from 'flushx';
 import { memorize, tail, TFHandle, TFMode, LineDecoder, MemorizeFn } from 'flushx-utils';
 
@@ -58,14 +58,14 @@ export default class FsCollectorPlugin implements ICollectorPlugin {
   }
 
   execute(_ctx: Context, input: CollectorPluginExecuteInput): void {
-    const { mode = ReadMode.CONTINUOUS } = this.config;
+    const { mode = ReadMode.CONTINUOUS, watchOptions } = this.config;
 
     function emit(lines: string[]): void {
       input.onData({ data: lines });
     }
 
     function tailf(filePath: string): TFHandle {
-      return tail(filePath, { encoding: 'utf8', mode: TFMode.F }, emit);
+      return tail(filePath, { encoding: 'utf8', mode: TFMode.F, watchOptions }, emit);
     }
 
     const files = this.getFiles();
@@ -181,6 +181,11 @@ export interface FsCollectorPluginConfig extends PluginConfig {
    * 读取方式
    */
   mode?: ReadMode;
+
+  /**
+   * chokidar watch options
+   */
+  watchOptions: WatchOptions;
 }
 
 /**

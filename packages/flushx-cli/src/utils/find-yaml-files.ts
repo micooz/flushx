@@ -5,7 +5,7 @@ async function findYamlFiles(dir: string): Promise<string[]> {
   const files = await fs.promises.readdir(dir);
   return files.map((file: string) => {
     const fullPath = path.join(dir, file);
-    if (path.extname(fullPath) === '.yaml') {
+    if (!file.startsWith('.') && path.extname(fullPath) === '.yaml') {
       return fullPath;
     }
     return null;

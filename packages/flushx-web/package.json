@@ -19,7 +19,7 @@
     ]
   },
   "dependencies": {
-    "@antv/g2plot": "^0.11.40",
+    "@antv/g2plot": "^1.0.0",
     "@umijs/preset-react": "^1.4.3",
     "@umijs/test": "^3.0.8",
     "antd": "^4.0.2",
@@ -29,6 +29,7 @@
     "prettier": "^1.19.1",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
+    "react-use": "^13.27.0",
     "umi": "^3.0.8",
     "yorkie": "^2.0.0"
   }

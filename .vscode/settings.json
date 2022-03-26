@@ -1,21 +1,29 @@
 {
-    "spellright.language": [
-        "en"
-    ],
-    "spellright.documentTypes": [
-        "markdown",
-        "latex",
-        "plaintext",
-        "typescript"
-    ],
-    "cSpell.ignoreWords": [
-        "antd",
-        "autoincrement",
-        "handler",
-        "tailf",
-        "umijs"
-    ],
-    "search.exclude": {
-        "**/node_modules": false
+  "spellright.language": [
+    "en"
+  ],
+  "spellright.documentTypes": [
+    "markdown",
+    "latex",
+    "plaintext",
+    "typescript"
+  ],
+  "cSpell.ignoreWords": [
+    "antd",
+    "autoincrement",
+    "handler",
+    "tailf",
+    "umijs"
+  ],
+  "search.exclude": {
+    "**/node_modules": false
+  },
+  "sqltools.connections": [
+    {
+      "database": "${workspaceFolder}/packages/flushx-cli/fixtures/flushx.db",
+      "dialect": "SQLite",
+      "name": "flushx"
     }
+  ],
+  "sqltools.useNodeRuntime": true
 }
